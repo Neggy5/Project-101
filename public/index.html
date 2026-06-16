@@ -1,0 +1,778 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Account Recovery — Dashboard</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --bg-void:     #07091a;
+      --bg-deep:     #0d1130;
+      --bg-panel:    #111840;
+      --bg-card:     #161f50;
+      --bg-card-h:   #1c2860;
+      --border:      rgba(99, 179, 237, 0.15);
+      --border-h:    rgba(99, 179, 237, 0.45);
+      --cyan:        #38d9f5;
+      --cyan-dim:    rgba(56, 217, 245, 0.12);
+      --teal:        #2dd4bf;
+      --purple:      #a78bfa;
+      --green:       #4ade80;
+      --green-dim:   rgba(74, 222, 128, 0.15);
+      --amber:       #fbbf24;
+      --red:         #f87171;
+      --text-1:      #e8eeff;
+      --text-2:      #8fa3cc;
+      --text-3:      #4a5a80;
+      --sidebar-w:   220px;
+      --radius:      14px;
+      --font:        'Space Grotesk', system-ui, sans-serif;
+      --mono:        'JetBrains Mono', monospace;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    html, body {
+      height: 100%;
+      background: var(--bg-void);
+      color: var(--text-1);
+      font-family: var(--font);
+      overflow: hidden;
+    }
+
+    /* ── PARTICLE CANVAS ── */
+    #canvas {
+      position: fixed; inset: 0; z-index: 0; pointer-events: none;
+    }
+
+    /* ── LAYOUT ── */
+    .app {
+      position: relative; z-index: 1;
+      display: flex; height: 100vh;
+    }
+
+    /* ── SIDEBAR ── */
+    .sidebar {
+      width: var(--sidebar-w);
+      background: linear-gradient(180deg, #0f1535 0%, #090d25 100%);
+      border-right: 1px solid var(--border);
+      display: flex; flex-direction: column;
+      padding: 0;
+      flex-shrink: 0;
+    }
+
+    .logo {
+      display: flex; align-items: center; gap: 12px;
+      padding: 22px 20px 20px;
+      border-bottom: 1px solid var(--border);
+    }
+    .logo-icon {
+      width: 38px; height: 38px;
+      background: linear-gradient(135deg, #1e3a8a, #3b82f6);
+      border-radius: 10px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 18px;
+      box-shadow: 0 0 16px rgba(59,130,246,0.4);
+    }
+    .logo-text { display: flex; flex-direction: column; line-height: 1.1; }
+    .logo-text span:first-child { font-size: 15px; font-weight: 700; color: var(--text-1); }
+    .logo-text span:last-child  { font-size: 13px; font-weight: 500; color: var(--cyan); }
+
+    nav { flex: 1; padding: 16px 12px; display: flex; flex-direction: column; gap: 4px; }
+
+    .nav-item {
+      display: flex; align-items: center; gap: 12px;
+      padding: 10px 12px;
+      border-radius: 10px;
+      cursor: pointer;
+      color: var(--text-2);
+      font-size: 14px; font-weight: 500;
+      transition: all .2s;
+      border: 1px solid transparent;
+    }
+    .nav-item:hover { background: var(--cyan-dim); color: var(--text-1); }
+    .nav-item.active {
+      background: linear-gradient(90deg, rgba(56,217,245,0.18), rgba(56,217,245,0.05));
+      color: var(--cyan);
+      border-color: rgba(56,217,245,0.3);
+      box-shadow: inset 0 0 12px rgba(56,217,245,0.06);
+    }
+    .nav-item .icon { font-size: 17px; width: 20px; text-align: center; }
+
+    .trust-box {
+      margin: 12px;
+      padding: 14px;
+      background: rgba(56,217,245,0.06);
+      border: 1px solid rgba(56,217,245,0.2);
+      border-radius: 12px;
+    }
+    .trust-box .t-head { display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 600; color: var(--text-1); margin-bottom: 4px; }
+    .trust-box p { font-size: 12px; color: var(--text-2); line-height: 1.5; }
+
+    .dark-toggle {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 14px 20px;
+      border-top: 1px solid var(--border);
+      font-size: 13px; color: var(--text-2);
+    }
+    .toggle {
+      width: 38px; height: 21px;
+      background: var(--cyan);
+      border-radius: 99px;
+      position: relative; cursor: pointer;
+      box-shadow: 0 0 10px rgba(56,217,245,0.5);
+    }
+    .toggle::after {
+      content: ''; position: absolute;
+      top: 3px; left: 20px;
+      width: 15px; height: 15px;
+      background: #fff; border-radius: 50%;
+      transition: left .2s;
+    }
+
+    /* ── MAIN ── */
+    .main {
+      flex: 1; overflow-y: auto;
+      display: flex; flex-direction: column;
+    }
+
+    /* ── TOPBAR ── */
+    .topbar {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 16px 32px;
+      background: rgba(13,17,48,0.8);
+      backdrop-filter: blur(10px);
+      border-bottom: 1px solid var(--border);
+      position: sticky; top: 0; z-index: 10;
+    }
+    .trusted-badge {
+      display: flex; align-items: center; gap: 8px;
+      padding: 7px 16px;
+      background: rgba(56,217,245,0.08);
+      border: 1px solid rgba(56,217,245,0.25);
+      border-radius: 99px;
+      font-size: 13px; color: var(--cyan);
+    }
+    .help-btn {
+      display: flex; align-items: center; gap: 8px;
+      padding: 8px 18px;
+      background: transparent;
+      border: 1px solid var(--border-h);
+      border-radius: 8px;
+      color: var(--text-1); font-size: 13px;
+      cursor: pointer; transition: all .2s;
+    }
+    .help-btn:hover { background: var(--cyan-dim); border-color: var(--cyan); }
+
+    /* ── CONTENT ── */
+    .content { padding: 32px; flex: 1; }
+
+    .page { display: none; }
+    .page.active { display: block; }
+
+    /* ── HERO ── */
+    .hero { text-align: center; margin-bottom: 36px; }
+    .hero h1 {
+      font-size: 38px; font-weight: 700; letter-spacing: -.5px;
+      color: var(--text-1); line-height: 1.15;
+    }
+    .hero h1 span { color: var(--cyan); }
+    .hero p { font-size: 15px; color: var(--text-2); margin-top: 10px; line-height: 1.6; }
+
+    /* ── SECTION HEADERS ── */
+    .section-label {
+      display: flex; align-items: center; gap: 10px;
+      font-size: 15px; font-weight: 600; color: var(--text-1);
+      margin-bottom: 18px;
+    }
+    .section-label .dot { color: var(--cyan); font-size: 18px; }
+
+    /* ── PLATFORM GRID ── */
+    .platform-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(168px, 1fr));
+      gap: 14px;
+      margin-bottom: 36px;
+    }
+
+    .platform-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 22px 16px 16px;
+      display: flex; flex-direction: column; align-items: center; gap: 10px;
+      cursor: pointer;
+      transition: all .25s;
+      position: relative;
+      overflow: hidden;
+    }
+    .platform-card::before {
+      content: '';
+      position: absolute; inset: 0;
+      background: radial-gradient(circle at 50% 0%, var(--glow-color, rgba(56,217,245,0.1)) 0%, transparent 70%);
+      opacity: 0; transition: opacity .3s;
+    }
+    .platform-card:hover {
+      background: var(--bg-card-h);
+      border-color: var(--border-h);
+      transform: translateY(-3px);
+      box-shadow: 0 8px 28px rgba(0,0,0,0.4), 0 0 20px var(--glow-color, rgba(56,217,245,0.2));
+    }
+    .platform-card:hover::before { opacity: 1; }
+    .platform-card.locked {
+      opacity: .55; cursor: default; filter: grayscale(.6);
+    }
+    .platform-card.locked:hover { transform: none; box-shadow: none; }
+
+    .plat-icon {
+      width: 52px; height: 52px;
+      border-radius: 14px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 28px;
+      background: rgba(255,255,255,0.06);
+    }
+    .plat-name { font-size: 14px; font-weight: 600; color: var(--text-1); }
+
+    .recover-btn {
+      width: 100%;
+      padding: 8px 0;
+      border-radius: 8px;
+      border: none; cursor: pointer;
+      font-size: 13px; font-weight: 600;
+      font-family: var(--font);
+      display: flex; align-items: center; justify-content: center; gap: 6px;
+      transition: all .2s;
+      background: linear-gradient(90deg, #16a34a, #15803d);
+      color: #fff;
+      box-shadow: 0 0 12px rgba(74,222,128,0.25);
+    }
+    .recover-btn:hover {
+      background: linear-gradient(90deg, #22c55e, #16a34a);
+      box-shadow: 0 0 20px rgba(74,222,128,0.45);
+    }
+
+    .soon-badge {
+      font-size: 11px; font-family: var(--mono);
+      background: rgba(251,191,36,0.12);
+      color: var(--amber);
+      border: 1px solid rgba(251,191,36,0.3);
+      border-radius: 99px;
+      padding: 4px 10px;
+      display: flex; align-items: center; gap: 5px;
+    }
+    .lock-icon {
+      position: absolute; top: 10px; right: 10px;
+      font-size: 13px; color: var(--text-3);
+    }
+
+    /* ── FOOTER FEATURES ── */
+    .features-bar {
+      display: grid; grid-template-columns: repeat(3, 1fr);
+      gap: 1px;
+      background: var(--border);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      overflow: hidden;
+      margin-top: 8px;
+    }
+    .feat {
+      background: var(--bg-panel);
+      padding: 18px 20px;
+      display: flex; align-items: center; gap: 14px;
+    }
+    .feat-icon { font-size: 24px; }
+    .feat-text h4 { font-size: 13px; font-weight: 600; color: var(--text-1); }
+    .feat-text p  { font-size: 12px; color: var(--text-2); margin-top: 2px; }
+
+    /* ── MODAL ── */
+    .modal-overlay {
+      display: none; position: fixed; inset: 0; z-index: 100;
+      background: rgba(0,0,0,0.7); backdrop-filter: blur(6px);
+      align-items: center; justify-content: center;
+    }
+    .modal-overlay.open { display: flex; }
+
+    .modal {
+      background: var(--bg-panel);
+      border: 1px solid var(--border-h);
+      border-radius: 18px;
+      padding: 32px;
+      width: 100%; max-width: 440px;
+      box-shadow: 0 24px 60px rgba(0,0,0,0.6), 0 0 40px rgba(56,217,245,0.1);
+      animation: slideUp .25s ease;
+    }
+    @keyframes slideUp {
+      from { transform: translateY(24px); opacity: 0; }
+      to   { transform: translateY(0);    opacity: 1; }
+    }
+
+    .modal-header {
+      display: flex; align-items: center; justify-content: space-between;
+      margin-bottom: 24px;
+    }
+    .modal-title {
+      display: flex; align-items: center; gap: 12px;
+      font-size: 18px; font-weight: 700;
+    }
+    .modal-close {
+      background: none; border: none;
+      color: var(--text-2); font-size: 20px;
+      cursor: pointer; padding: 4px 8px; border-radius: 6px;
+      transition: color .2s;
+    }
+    .modal-close:hover { color: var(--text-1); }
+
+    .form-group { margin-bottom: 18px; }
+    .form-group label {
+      display: block; font-size: 13px; font-weight: 500;
+      color: var(--text-2); margin-bottom: 8px;
+    }
+    .form-group input,
+    .form-group textarea {
+      width: 100%;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 11px 14px;
+      color: var(--text-1);
+      font-size: 14px; font-family: var(--font);
+      outline: none; transition: border-color .2s;
+      resize: none;
+    }
+    .form-group input:focus,
+    .form-group textarea:focus { border-color: var(--cyan); box-shadow: 0 0 0 3px rgba(56,217,245,0.1); }
+
+    .submit-btn {
+      width: 100%;
+      padding: 13px;
+      background: linear-gradient(90deg, var(--cyan), var(--teal));
+      border: none; border-radius: 10px;
+      color: var(--bg-void); font-size: 15px; font-weight: 700;
+      font-family: var(--font);
+      cursor: pointer; transition: all .2s;
+      box-shadow: 0 0 20px rgba(56,217,245,0.3);
+    }
+    .submit-btn:hover { box-shadow: 0 0 32px rgba(56,217,245,0.5); transform: translateY(-1px); }
+    .submit-btn:disabled { opacity: .6; cursor: default; transform: none; }
+
+    .success-banner {
+      display: none;
+      background: var(--green-dim);
+      border: 1px solid rgba(74,222,128,0.3);
+      border-radius: 10px;
+      padding: 14px;
+      text-align: center;
+      color: var(--green);
+      font-weight: 600; font-size: 14px;
+      margin-top: 16px;
+    }
+
+    /* ── REQUESTS PAGE ── */
+    .stat-row {
+      display: grid; grid-template-columns: repeat(4, 1fr);
+      gap: 14px; margin-bottom: 28px;
+    }
+    .stat-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 18px 20px;
+    }
+    .stat-card .s-label { font-size: 12px; color: var(--text-2); font-weight: 500; margin-bottom: 8px; }
+    .stat-card .s-value { font-size: 28px; font-weight: 700; font-family: var(--mono); }
+    .stat-card.total  .s-value { color: var(--cyan); }
+    .stat-card.pending .s-value { color: var(--amber); }
+    .stat-card.progress .s-value { color: var(--purple); }
+    .stat-card.resolved .s-value { color: var(--green); }
+
+    .request-list { display: flex; flex-direction: column; gap: 10px; }
+    .req-item {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 16px 20px;
+      display: flex; align-items: center; gap: 16px;
+    }
+    .req-id { font-family: var(--mono); font-size: 12px; color: var(--cyan); }
+    .req-plat { font-size: 13px; font-weight: 600; flex: 1; }
+    .req-user { font-size: 13px; color: var(--text-2); flex: 1; }
+    .req-date { font-size: 12px; color: var(--text-3); }
+    .status-badge {
+      padding: 4px 10px; border-radius: 99px;
+      font-size: 11px; font-weight: 600;
+    }
+    .status-badge.pending  { background: rgba(251,191,36,0.12); color: var(--amber); border: 1px solid rgba(251,191,36,0.3); }
+    .status-badge.resolved { background: var(--green-dim); color: var(--green); border: 1px solid rgba(74,222,128,0.3); }
+
+    .empty-state {
+      text-align: center; padding: 60px 20px;
+      color: var(--text-3); font-size: 15px;
+    }
+    .empty-state .big { font-size: 48px; margin-bottom: 12px; }
+
+    /* ── SCROLLBAR ── */
+    ::-webkit-scrollbar { width: 6px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 99px; }
+
+    /* ── RESPONSIVE ── */
+    @media (max-width: 900px) {
+      .sidebar { width: 64px; }
+      .logo-text, .nav-item span:not(.icon), .trust-box, .dark-toggle span { display: none; }
+      .nav-item { justify-content: center; padding: 12px; }
+      .content { padding: 20px; }
+      .hero h1 { font-size: 26px; }
+      .stat-row { grid-template-columns: repeat(2, 1fr); }
+      .features-bar { grid-template-columns: 1fr; }
+    }
+    @media (max-width: 600px) {
+      .platform-grid { grid-template-columns: repeat(2, 1fr); }
+      .topbar { padding: 12px 16px; }
+    }
+  </style>
+</head>
+<body>
+
+<canvas id="canvas"></canvas>
+
+<div class="app">
+  <!-- SIDEBAR -->
+  <aside class="sidebar">
+    <div class="logo">
+      <div class="logo-icon">🛡️</div>
+      <div class="logo-text">
+        <span>Account</span>
+        <span>Recovery</span>
+      </div>
+    </div>
+
+    <nav>
+      <div class="nav-item active" data-page="dashboard" onclick="navigate('dashboard', this)">
+        <span class="icon">🏠</span><span>Dashboard</span>
+      </div>
+      <div class="nav-item" data-page="recoveries" onclick="navigate('recoveries', this)">
+        <span class="icon">🔄</span><span>Recoveries</span>
+      </div>
+      <div class="nav-item" data-page="requests" onclick="navigate('requests', this)">
+        <span class="icon">📋</span><span>Requests</span>
+      </div>
+      <div class="nav-item">
+        <span class="icon">💬</span><span>Support</span>
+      </div>
+      <div class="nav-item">
+        <span class="icon">ℹ️</span><span>How It Works</span>
+      </div>
+      <div class="nav-item">
+        <span class="icon">🔒</span><span>Security</span>
+      </div>
+      <div class="nav-item">
+        <span class="icon">⚙️</span><span>Settings</span>
+      </div>
+    </nav>
+
+    <div class="trust-box">
+      <div class="t-head">🛡️ We value your trust</div>
+      <p>Your privacy and security are our top priorities.</p>
+    </div>
+
+    <div class="dark-toggle">
+      <span>🌙 Dark Mode</span>
+      <div class="toggle"></div>
+    </div>
+  </aside>
+
+  <!-- MAIN -->
+  <main class="main">
+    <!-- TOPBAR -->
+    <div class="topbar">
+      <div class="trusted-badge">
+        🛡️ Trusted by thousands worldwide
+      </div>
+      <button class="help-btn">🎧 Need Help?</button>
+    </div>
+
+    <!-- CONTENT -->
+    <div class="content">
+
+      <!-- DASHBOARD PAGE -->
+      <div class="page active" id="page-dashboard">
+        <div class="hero">
+          <h1>Welcome to <span>Account Recovery</span></h1>
+          <p>We recover all kinds of hacked social media accounts.<br>Select your platform below to begin.</p>
+        </div>
+
+        <!-- Active Platforms -->
+        <div class="section-label"><span class="dot">✦</span> Available Platforms</div>
+        <div class="platform-grid" id="active-grid"></div>
+
+        <!-- Coming Soon -->
+        <div class="section-label"><span class="dot">🕐</span> Coming Soon</div>
+        <div class="platform-grid" id="soon-grid"></div>
+
+        <!-- Features Bar -->
+        <div class="features-bar">
+          <div class="feat"><div class="feat-icon">⚡</div><div class="feat-text"><h4>Fast &amp; Reliable</h4><p>Quick recovery solutions</p></div></div>
+          <div class="feat"><div class="feat-icon">🔐</div><div class="feat-text"><h4>Secure &amp; Private</h4><p>Your data is always protected</p></div></div>
+          <div class="feat"><div class="feat-icon">🎧</div><div class="feat-text"><h4>Expert Support</h4><p>We're here to help 24/7</p></div></div>
+        </div>
+      </div>
+
+      <!-- RECOVERIES PAGE -->
+      <div class="page" id="page-recoveries">
+        <div class="hero" style="text-align:left;">
+          <h1>My <span>Recoveries</span></h1>
+          <p>Track the status of all your account recovery requests.</p>
+        </div>
+        <div class="stat-row">
+          <div class="stat-card total"><div class="s-label">Total Requests</div><div class="s-value" id="st-total">0</div></div>
+          <div class="stat-card pending"><div class="s-label">Pending</div><div class="s-value" id="st-pending">0</div></div>
+          <div class="stat-card progress"><div class="s-label">In Progress</div><div class="s-value" id="st-progress">0</div></div>
+          <div class="stat-card resolved"><div class="s-label">Resolved</div><div class="s-value" id="st-resolved">0</div></div>
+        </div>
+        <div class="request-list" id="recovery-list">
+          <div class="empty-state"><div class="big">📭</div>No recovery requests yet.<br>Start a recovery from the Dashboard.</div>
+        </div>
+      </div>
+
+      <!-- REQUESTS PAGE -->
+      <div class="page" id="page-requests">
+        <div class="hero" style="text-align:left;">
+          <h1>All <span>Requests</span></h1>
+          <p>View and manage every submitted recovery request.</p>
+        </div>
+        <div class="request-list" id="all-requests-list">
+          <div class="empty-state"><div class="big">📋</div>No requests submitted yet.</div>
+        </div>
+      </div>
+
+    </div><!-- /content -->
+  </main>
+</div>
+
+<!-- RECOVERY MODAL -->
+<div class="modal-overlay" id="modal">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title">
+        <span id="modal-icon" style="font-size:28px"></span>
+        <span id="modal-title">Recover Account</span>
+      </div>
+      <button class="modal-close" onclick="closeModal()">✕</button>
+    </div>
+
+    <div class="form-group">
+      <label>Username or Profile URL</label>
+      <input type="text" id="f-username" placeholder="@yourhandle or https://..." />
+    </div>
+    <div class="form-group">
+      <label>Contact Email</label>
+      <input type="email" id="f-email" placeholder="you@email.com" />
+    </div>
+    <div class="form-group">
+      <label>Describe the issue <span style="color:var(--text-3)">(optional)</span></label>
+      <textarea id="f-details" rows="3" placeholder="When did you lose access? Any error messages?"></textarea>
+    </div>
+
+    <button class="submit-btn" id="submit-btn" onclick="submitRequest()">
+      Submit Recovery Request →
+    </button>
+    <div class="success-banner" id="success-msg">
+      ✅ Request submitted! We'll contact you within 24 hours.
+    </div>
+  </div>
+</div>
+
+<script>
+// ─── PLATFORMS ───────────────────────────────────────────────
+const ACTIVE = [
+  { name:'Facebook',  icon:'<img src="https://cdn.simpleicons.org/facebook/1877F2" style="width:32px">',  glow:'rgba(24,119,242,0.25)' },
+  { name:'Instagram', icon:'<img src="https://cdn.simpleicons.org/instagram/E1306C" style="width:32px">',  glow:'rgba(225,48,108,0.25)' },
+  { name:'TikTok',    icon:'<img src="https://cdn.simpleicons.org/tiktok/ffffff" style="width:32px">',     glow:'rgba(255,255,255,0.15)' },
+  { name:'LinkedIn',  icon:'<img src="https://cdn.simpleicons.org/linkedin/0A66C2" style="width:32px">',  glow:'rgba(10,102,194,0.25)' },
+  { name:'Snapchat',  icon:'<img src="https://cdn.simpleicons.org/snapchat/FFFC00" style="width:32px">',  glow:'rgba(255,252,0,0.25)' },
+  { name:'X / Twitter', icon:'<img src="https://cdn.simpleicons.org/x/ffffff" style="width:32px">',       glow:'rgba(255,255,255,0.12)' },
+  { name:'YouTube',   icon:'<img src="https://cdn.simpleicons.org/youtube/FF0000" style="width:32px">',   glow:'rgba(255,0,0,0.25)' },
+  { name:'Reddit',    icon:'<img src="https://cdn.simpleicons.org/reddit/FF4500" style="width:32px">',    glow:'rgba(255,69,0,0.25)' },
+  { name:'Pinterest', icon:'<img src="https://cdn.simpleicons.org/pinterest/E60023" style="width:32px">',glow:'rgba(230,0,35,0.25)' },
+  { name:'WhatsApp',  icon:'<img src="https://cdn.simpleicons.org/whatsapp/25D366" style="width:32px">',  glow:'rgba(37,211,102,0.25)' },
+  { name:'Telegram',  icon:'<img src="https://cdn.simpleicons.org/telegram/26A5E4" style="width:32px">',  glow:'rgba(38,165,228,0.25)' },
+];
+
+const SOON = [
+  { name:'Discord',  icon:'<img src="https://cdn.simpleicons.org/discord/5865F2" style="width:32px">' },
+  { name:'Twitch',   icon:'<img src="https://cdn.simpleicons.org/twitch/9146FF" style="width:32px">' },
+  { name:'Google',   icon:'<img src="https://cdn.simpleicons.org/google/4285F4" style="width:32px">' },
+  { name:'Apple',    icon:'<img src="https://cdn.simpleicons.org/apple/ffffff" style="width:32px">' },
+  { name:'Amazon',   icon:'<img src="https://cdn.simpleicons.org/amazon/FF9900" style="width:32px">' },
+  { name:'PayPal',   icon:'<img src="https://cdn.simpleicons.org/paypal/003087" style="width:32px">' },
+];
+
+// ─── RENDER GRIDS ─────────────────────────────────────────────
+function renderGrids() {
+  const ag = document.getElementById('active-grid');
+  ag.innerHTML = ACTIVE.map(p => `
+    <div class="platform-card" style="--glow-color:${p.glow}" onclick="openModal('${p.name}','${p.icon}')">
+      <div class="plat-icon">${p.icon}</div>
+      <div class="plat-name">${p.name}</div>
+      <button class="recover-btn" onclick="event.stopPropagation(); openModal('${p.name}','${p.icon}')">
+        Recover →
+      </button>
+    </div>`).join('');
+
+  const sg = document.getElementById('soon-grid');
+  sg.innerHTML = SOON.map(p => `
+    <div class="platform-card locked">
+      <div class="lock-icon">🔒</div>
+      <div class="plat-icon">${p.icon}</div>
+      <div class="plat-name">${p.name}</div>
+      <div class="soon-badge">🕐 Soon</div>
+    </div>`).join('');
+}
+
+// ─── NAVIGATION ───────────────────────────────────────────────
+let currentPage = 'dashboard';
+function navigate(page, el) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  document.getElementById('page-' + page).classList.add('active');
+  el.classList.add('active');
+  currentPage = page;
+  if (page === 'recoveries' || page === 'requests') loadRequests();
+}
+
+// ─── MODAL ────────────────────────────────────────────────────
+let activeplatform = '';
+function openModal(name, icon) {
+  activeplatform = name;
+  document.getElementById('modal-icon').innerHTML = icon;
+  document.getElementById('modal-title').textContent = `Recover ${name} Account`;
+  document.getElementById('f-username').value = '';
+  document.getElementById('f-email').value = '';
+  document.getElementById('f-details').value = '';
+  document.getElementById('success-msg').style.display = 'none';
+  document.getElementById('submit-btn').disabled = false;
+  document.getElementById('modal').classList.add('open');
+}
+function closeModal() {
+  document.getElementById('modal').classList.remove('open');
+}
+document.getElementById('modal').addEventListener('click', e => {
+  if (e.target === e.currentTarget) closeModal();
+});
+
+// ─── SUBMIT ───────────────────────────────────────────────────
+async function submitRequest() {
+  const username = document.getElementById('f-username').value.trim();
+  const email    = document.getElementById('f-email').value.trim();
+  const details  = document.getElementById('f-details').value.trim();
+  if (!username || !email) { alert('Please fill in username and email.'); return; }
+
+  const btn = document.getElementById('submit-btn');
+  btn.disabled = true; btn.textContent = 'Submitting…';
+
+  try {
+    const res = await fetch('/api/requests', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ platform: activeplatform, username, email, details })
+    });
+    if (!res.ok) throw new Error('Server error');
+    document.getElementById('success-msg').style.display = 'block';
+    btn.textContent = '✓ Submitted';
+    setTimeout(closeModal, 2000);
+  } catch {
+    btn.disabled = false; btn.textContent = 'Submit Recovery Request →';
+    alert('Something went wrong. Please try again.');
+  }
+}
+
+// ─── LOAD REQUESTS ────────────────────────────────────────────
+async function loadRequests() {
+  try {
+    const [reqRes, statRes] = await Promise.all([
+      fetch('/api/requests'), fetch('/api/stats')
+    ]);
+    const requests = await reqRes.json();
+    const stats    = await statRes.json();
+
+    // Stats
+    document.getElementById('st-total').textContent    = stats.total;
+    document.getElementById('st-pending').textContent  = stats.pending;
+    document.getElementById('st-progress').textContent = stats.inProgress;
+    document.getElementById('st-resolved').textContent = stats.resolved;
+
+    // Lists
+    const html = requests.length ? requests.map(r => `
+      <div class="req-item">
+        <span class="req-id">${r.id}</span>
+        <span class="req-plat">${r.platform}</span>
+        <span class="req-user">${r.username}</span>
+        <span class="req-date">${new Date(r.createdAt).toLocaleDateString()}</span>
+        <span class="status-badge ${r.status === 'Resolved' ? 'resolved' : 'pending'}">${r.status}</span>
+      </div>`).join('') : '<div class="empty-state"><div class="big">📭</div>No requests yet.</div>';
+
+    document.getElementById('recovery-list').innerHTML = html;
+    document.getElementById('all-requests-list').innerHTML = html;
+  } catch { /* silent */ }
+}
+
+// ─── PARTICLE CANVAS ──────────────────────────────────────────
+(function() {
+  const canvas = document.getElementById('canvas');
+  const ctx = canvas.getContext('2d');
+  let W, H, particles;
+
+  function init() {
+    W = canvas.width  = window.innerWidth;
+    H = canvas.height = window.innerHeight;
+    particles = Array.from({ length: 70 }, () => ({
+      x: Math.random() * W,
+      y: Math.random() * H,
+      r: Math.random() * 1.5 + 0.3,
+      vx: (Math.random() - 0.5) * 0.3,
+      vy: (Math.random() - 0.5) * 0.3,
+      a: Math.random() * 0.5 + 0.1
+    }));
+  }
+
+  function draw() {
+    ctx.clearRect(0, 0, W, H);
+    particles.forEach(p => {
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+      ctx.fillStyle = `rgba(56,217,245,${p.a})`;
+      ctx.fill();
+      p.x += p.vx; p.y += p.vy;
+      if (p.x < 0) p.x = W; if (p.x > W) p.x = 0;
+      if (p.y < 0) p.y = H; if (p.y > H) p.y = 0;
+    });
+    // draw subtle lines between close particles
+    for (let i = 0; i < particles.length; i++) {
+      for (let j = i + 1; j < particles.length; j++) {
+        const dx = particles[i].x - particles[j].x;
+        const dy = particles[i].y - particles[j].y;
+        const dist = Math.sqrt(dx*dx + dy*dy);
+        if (dist < 120) {
+          ctx.beginPath();
+          ctx.moveTo(particles[i].x, particles[i].y);
+          ctx.lineTo(particles[j].x, particles[j].y);
+          ctx.strokeStyle = `rgba(56,217,245,${0.06 * (1 - dist/120)})`;
+          ctx.lineWidth = 0.6;
+          ctx.stroke();
+        }
+      }
+    }
+    requestAnimationFrame(draw);
+  }
+
+  window.addEventListener('resize', init);
+  init(); draw();
+})();
+
+// ─── INIT ─────────────────────────────────────────────────────
+renderGrids();
+</script>
+</body>
+</html>
